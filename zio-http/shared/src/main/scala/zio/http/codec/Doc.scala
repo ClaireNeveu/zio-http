@@ -156,11 +156,6 @@ sealed trait Doc { self =>
     }
 
     render(this)
-    val tags = self.tags
-    if (tags.nonEmpty) {
-      // Add all tags to the end of the document as an unordered list
-      render(Doc.unorderedListing(tags.map(Doc.p): _*))
-    }
     writer.toString()
   }
 

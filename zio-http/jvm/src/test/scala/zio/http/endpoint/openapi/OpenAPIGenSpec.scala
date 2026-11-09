@@ -464,13 +464,13 @@ object OpenAPIGenSpec extends ZIOSpecDefault {
                              |  },
                              |  "paths" : {
                              |    "/static/{id}/{uuid}/{name}" : {
-                             |      "description" : "some extra doc\n\n- simple\n- endpoint\n",
+                             |      "description" : "some extra doc\n\n",
                              |      "get" : {
                              |        "tags" : [
                              |          "simple",
                              |          "endpoint"
                              |        ],
-                             |        "description" : "some extra doc\n\nget path\n\n- simple\n- endpoint\n",
+                             |        "description" : "some extra doc\n\nget path\n\n",
                              |        "parameters" : [
                              |          {
                              |            "name" : "id",
