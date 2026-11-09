@@ -114,6 +114,13 @@ sealed trait ProtocolStack[-Env, -IncomingIn, +IncomingOut, -OutgoingIn, +Outgoi
       outgoingHandler.provideEnvironment(env),
     )
 
+  def provideSomeEnvironment[Env0](f: ZEnvironment[Env0] => ZEnvironment[Env])(implicit
+    trace: Trace,
+  ): ProtocolStack[Env0, IncomingIn, IncomingOut, OutgoingIn, OutgoingOut] =
+    ProtocolStack.interceptHandlerStateful(incomingHandler.provideSomeEnvironment(f))(
+      outgoingHandler.provideSomeEnvironment(f),
+    )
+
   final def ++[Env1 <: Env, MiddleIncoming, MiddleOutgoing](
     that: ProtocolStack[Env1, IncomingOut, MiddleIncoming, MiddleOutgoing, OutgoingIn],
   ): ProtocolStack[Env1, IncomingIn, MiddleIncoming, MiddleOutgoing, OutgoingOut] =

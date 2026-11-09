@@ -112,6 +112,15 @@ final case class HandlerAspect[-Env, +CtxOut](
     }
 
   /**
+   * Applies middleware to the specified route, which may ignore the context
+   * produced by this middleware.
+   */
+  def applyRoute[Env1 <: Env, Err](
+    route: Route[Env1, Err],
+  ): Route[Env1, Err] =
+    route.transform[Env1](self.applyHandler _)
+
+  /**
    * Applies middleware to the specified handler, which must process the context
    * produced by this middleware.
    */
@@ -167,6 +176,9 @@ final case class HandlerAspect[-Env, +CtxOut](
    */
   def provideEnvironment(env: ZEnvironment[Env]): HandlerAspect[Any, CtxOut] =
     HandlerAspect(protocol.provideEnvironment(env))
+
+  def provideSomeEnvironment[Env0](f: ZEnvironment[Env0] => ZEnvironment[Env]): HandlerAspect[Env0, CtxOut] =
+    HandlerAspect(protocol.provideSomeEnvironment(f))
 
   /**
    * Returns new middleware that produces the unit value as its context.

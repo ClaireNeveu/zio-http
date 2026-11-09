@@ -17,7 +17,10 @@ package zio.http
 
 import zio._
 
-import zio.http.Route.CheckResponse
+import zio.http.Route.{
+  ApplyContextAspect,
+  CheckResponse
+}
 import zio.http.codec.PathCodec
 
 /*
@@ -43,6 +46,17 @@ sealed trait Route[-Env, +Err] { self =>
    */
   final def apply(request: Request)(implicit ev: Err <:< Response, trace: Trace): ZIO[Scope & Env, Response, Response] =
     toHandler.apply(request)
+
+  def @@[Env0](aspect: HandlerAspect[Env0, Unit]): Route[Env with Env0, Err] =
+    aspect.applyRoute(self)
+
+  def @@[Env0, Ctx <: Env](
+    aspect: HandlerAspect[Env0, Ctx],
+  )(implicit tag: Tag[Ctx]): Route[Env0, Err] =
+    self.transform(_ @@ aspect)
+
+  def @@[Env0]: ApplyContextAspect[Env, Err, Env0] =
+    new ApplyContextAspect[Env, Err, Env0](self)
 
   def asErrorType[Err2](implicit ev: Err <:< Err2): Route[Env, Err2] = self.asInstanceOf[Route[Env, Err2]]
 
@@ -386,8 +400,38 @@ sealed trait Route[-Env, +Err] { self =>
         Unhandled(pattern.nest(prefix), handler, zippable, location)
     }
 
+  final def provide[Env1 <: Env](env: Env1)(implicit tag: Tag[Env1]): Route[Any, Err] =
+    self.provideEnvironment(ZEnvironment(env))
+
   final def provideEnvironment(env: ZEnvironment[Env]): Route[Any, Err] =
     Route.Provided(self, env)
+
+  /**
+   * Provides the specified layer to the HTTP application, returning a new HTTP
+   * application that has the environmental requirements of the layer.
+   */
+  final def provideLayer[Err1 >: Err, Env0](layer: ZLayer[Env0, Response, Env])(implicit
+    trace: Trace,
+  ): Route[Env0, Err1] =
+    self.transform(_.provideLayer(layer))
+
+  /**
+   * Provides the specified enviroment to the HTTP application, returning a new
+   * HTTP application that does not require it.
+   */
+  final def provideSomeEnvironment[Env1](f: ZEnvironment[Env1] => ZEnvironment[Env])(implicit
+    trace: Trace,
+  ): Route[Env1, Err] =
+    self.transform(_.provideSomeEnvironment(f))
+
+  /**
+   * Provides the specified layer to the HTTP application, returning a new HTTP
+   * application that requires the layer's input rather than its output
+   */
+  final def provideSomeLayer[Env0, Env1: Tag](
+    layer: ZLayer[Env0, Response, Env1],
+  )(implicit ev: Env0 with Env1 <:< Env, trace: Trace): Route[Env0, Err] =
+    self.transform(_.provideSomeLayer(layer))
 
   /**
    * The route pattern over which the route is defined. The route can only
@@ -442,7 +486,8 @@ sealed trait Route[-Env, +Err] { self =>
   ): Route[Env1, Err] =
     Route.Augmented(self, f)
 }
-object Route                   {
+
+object Route extends RouteCompanionVersionSpecific {
 
   def handledIgnoreParams[Env](
     routePattern: RoutePattern[_],

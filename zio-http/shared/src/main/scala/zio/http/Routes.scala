@@ -190,6 +190,33 @@ final case class Routes[-Env, +Err](routes: Chunk[zio.http.Route[Env, Err]]) { s
   def provideEnvironment(env: ZEnvironment[Env]): Routes[Any, Err] =
     withRoutes(routes = routes.map(_.provideEnvironment(env)))
 
+  /**
+   * Provides the specified layer to the HTTP application, returning a new HTTP
+   * application that has the environmental requirements of the layer.
+   */
+  final def provideLayer[Err1 >: Err, Env0](layer: ZLayer[Env0, Response, Env])(implicit
+    trace: Trace,
+  ): Routes[Env0, Err1] =
+    withRoutes(routes = routes.map(_.provideLayer(layer)))
+
+  /**
+   * Provides the specified enviroment to the HTTP application, returning a new
+   * HTTP application that does not require it.
+   */
+  final def provideSomeEnvironment[Env1](f: ZEnvironment[Env1] => ZEnvironment[Env])(implicit
+    trace: Trace,
+  ): Routes[Env1, Err] =
+    withRoutes(routes = routes.map(_.provideSomeEnvironment(f)))
+
+  /**
+   * Provides the specified layer to the HTTP application, returning a new HTTP
+   * application that requires the layer's input rather than its output
+   */
+  final def provideSomeLayer[Env0, Env1: Tag, Err1 >: Err](
+    layer: ZLayer[Env0, Response, Env1],
+  )(implicit ev: Env0 with Env1 <:< Env, trace: Trace): Routes[Env0, Err1] =
+    withRoutes(routes = routes.map(_.provideSomeLayer(layer)))
+
   def run(request: Request)(implicit trace: Trace): ZIO[Scope & Env, Either[Err, Response], Response] = {
 
     class RouteFailure[+Err0](val err: Cause[Err0]) extends Throwable(null, null, true, false) {
